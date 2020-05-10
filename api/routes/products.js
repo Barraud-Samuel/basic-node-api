@@ -1,42 +1,45 @@
 const express = require('express');
 const router = express.Router();
+const mongoose = require('mongoose');
+const multer = require('multer');
+const checkAuth = require('../middleware/check-auth');
 
-router.get('/', (req,res,next)=>{
-  res.status(200).json({
-    message:'Handling GET request to /products'
-  });
-});
+const ProductsController = require('../controllers/products')
 
-router.post('/', (req,res,next)=>{
-  res.status(201).json({
-    message:'Handling POST request to /products'
-  });
-});
-
-router.get('/:productId', (req,res,next)=>{
-  const id = req.params.productId;
-  if (id==='special') {
-    res.status(200).json({
-      message:'You discovered the special ID',
-      id:id
-    });
-  }else{
-    res.status(200).json({
-      message:'You passed an ID'
-    })
+const storage = multer.diskStorage({
+  destination: function (req,file,cb) {
+    cb(null,'./uploads/');
+  },
+  filename: function(req,file, cb){
+    cb(null, Date.now() + file.originalname);
   }
 });
-
-router.patch('/:productId', (req,res,next)=>{
-  res.status(200).json({
-    message:'updated product'
-  })
+const fileFilter = (req,file,cb)=>{
+  //reject a file
+  if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/png') {
+    cb(null,true);
+  }else{
+    cb(null,false);
+  }
+}
+const upload = multer({
+  storage:storage,
+  limit:{
+    fileSize: 1024*1024*5
+  },
+  fileFilter: fileFilter
 });
 
-router.delete('/:productId', (req,res,next)=>{
-  res.status(200).json({
-    message:'Deleted product'
-  })
-});
+const Product = require('../models/product');
+
+router.get('/',checkAuth, ProductsController.products_get_all);
+
+router.post('/',checkAuth,upload.single('productImage'),ProductsController.products_create_product );
+
+router.get('/:productId',ProductsController.products_get_product );
+
+router.patch('/:productId',checkAuth, ProductsController.products_update_product);
+
+router.delete('/:productId', checkAuth, ProductsController.products_delete);
 
 module.exports = router;
